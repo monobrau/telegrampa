@@ -9,6 +9,8 @@ from telethon.tl.types import Channel, Chat, User
 from telethon.errors import SessionPasswordNeededError, FloodWaitError
 import os
 from dotenv import load_dotenv
+from deep_translator import GoogleTranslator
+from langdetect import detect, LangDetectException
 
 load_dotenv()
 
@@ -24,6 +26,40 @@ if not API_ID or not API_HASH:
 
 # Initialize Telegram client
 client = TelegramClient(SESSION_NAME, int(API_ID), API_HASH)
+
+# Translation function
+def translate_russian_to_english(text: str) -> str:
+    """
+    Detects if text is in Russian and translates it to English.
+    Returns original text if not Russian or if translation fails.
+    """
+    if not text or len(text.strip()) == 0:
+        return text
+    
+    try:
+        # Detect language
+        detected_lang = detect(text)
+        
+        # If Russian detected, translate to English
+        if detected_lang == 'ru':
+            translator = GoogleTranslator(source='ru', target='en')
+            translated = translator.translate(text)
+            return translated
+        else:
+            return text
+    except LangDetectException:
+        # If language detection fails, try to translate anyway if it looks like Russian
+        # (contains Cyrillic characters)
+        if any('\u0400' <= char <= '\u04FF' for char in text):
+            try:
+                translator = GoogleTranslator(source='ru', target='en')
+                translated = translator.translate(text)
+                return translated
+            except Exception:
+                return text
+    except Exception:
+        # If translation fails, return original text
+        return text
 
 # Response models
 class MessageModel(BaseModel):
@@ -90,7 +126,8 @@ async def get_messages(
     limit: int = Query(default=50, ge=1, le=1000, description="Number of messages to retrieve"),
     offset_id: Optional[int] = Query(default=None, description="Offset message ID for pagination"),
     min_id: Optional[int] = Query(default=None, description="Minimum message ID to retrieve"),
-    max_id: Optional[int] = Query(default=None, description="Maximum message ID to retrieve")
+    max_id: Optional[int] = Query(default=None, description="Maximum message ID to retrieve"),
+    translate: bool = Query(default=True, description="Automatically translate Russian messages to English")
 ):
     """
     Get messages from a specific channel
@@ -132,6 +169,10 @@ async def get_messages(
             if message.media and not text:
                 text = f"[Media: {type(message.media).__name__}]"
             
+            # Translate Russian to English if translate is enabled
+            if translate:
+                text = translate_russian_to_english(text)
+            
             message_model = MessageModel(
                 id=message.id,
                 date=message.date,
@@ -157,7 +198,8 @@ async def get_messages_by_username(
     limit: int = Query(default=50, ge=1, le=1000, description="Number of messages to retrieve"),
     offset_id: Optional[int] = Query(default=None, description="Offset message ID for pagination"),
     min_id: Optional[int] = Query(default=None, description="Minimum message ID to retrieve"),
-    max_id: Optional[int] = Query(default=None, description="Maximum message ID to retrieve")
+    max_id: Optional[int] = Query(default=None, description="Maximum message ID to retrieve"),
+    translate: bool = Query(default=True, description="Automatically translate Russian messages to English")
 ):
     """
     Get messages from a channel by username (e.g., 'channelname' without @)
@@ -198,6 +240,10 @@ async def get_messages_by_username(
             text = message.message or ""
             if message.media and not text:
                 text = f"[Media: {type(message.media).__name__}]"
+            
+            # Translate Russian to English if translate is enabled
+            if translate:
+                text = translate_russian_to_english(text)
             
             message_model = MessageModel(
                 id=message.id,
