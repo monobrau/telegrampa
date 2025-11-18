@@ -105,14 +105,17 @@ async def get_messages(
         # Get the channel entity
         entity = await client.get_entity(channel_id)
         
+        # Build kwargs for iter_messages, only including non-None values
+        iter_kwargs = {"limit": limit}
+        if offset_id is not None:
+            iter_kwargs["offset_id"] = offset_id
+        if min_id is not None:
+            iter_kwargs["min_id"] = min_id
+        if max_id is not None:
+            iter_kwargs["max_id"] = max_id
+        
         messages = []
-        async for message in client.iter_messages(
-            entity,
-            limit=limit,
-            offset_id=offset_id,
-            min_id=min_id,
-            max_id=max_id
-        ):
+        async for message in client.iter_messages(entity, **iter_kwargs):
             # Extract sender information
             sender_id = None
             sender_username = None
@@ -169,14 +172,17 @@ async def get_messages_by_username(
         # Get the channel entity by username
         entity = await client.get_entity(username)
         
+        # Build kwargs for iter_messages, only including non-None values
+        iter_kwargs = {"limit": limit}
+        if offset_id is not None:
+            iter_kwargs["offset_id"] = offset_id
+        if min_id is not None:
+            iter_kwargs["min_id"] = min_id
+        if max_id is not None:
+            iter_kwargs["max_id"] = max_id
+        
         messages = []
-        async for message in client.iter_messages(
-            entity,
-            limit=limit,
-            offset_id=offset_id,
-            min_id=min_id,
-            max_id=max_id
-        ):
+        async for message in client.iter_messages(entity, **iter_kwargs):
             # Extract sender information
             sender_id = None
             sender_username = None
